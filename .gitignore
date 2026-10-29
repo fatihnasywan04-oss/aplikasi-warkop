@@ -1,6 +1,25 @@
-.env
-.venv/
-venv/
+# Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Python
 __pycache__/
 *.py[cod]
-.pytest_cache/
+.venv/
+venv/
+
+# Environment dan rahasia
+.env
+**/.env
+
+# OS
+.DS_Store
+Thumbs.db
