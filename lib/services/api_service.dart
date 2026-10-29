@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 const String apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://127.0.0.1:8000',
+  defaultValue: 'aplikasi-warkop.fatihnasywan04.workers.dev',
 );
 
 class ApiService {
