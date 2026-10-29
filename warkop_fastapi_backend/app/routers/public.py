@@ -1,3 +1,4 @@
+
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,17 +33,38 @@ def public_menus(db: Session = Depends(get_db)):
     ]
 
 
-@router.post("/orders", response_model=OrderResponse, status_code=201)
+@router.post(
+    "/orders",
+    response_model=OrderResponse,
+    status_code=201,
+)
 def create_order(
     data: OrderCreate,
     db: Session = Depends(get_db),
 ):
+    customer_name = data.customer_name.strip()
+
+    if not customer_name:
+        raise HTTPException(
+            status_code=422,
+            detail="Nama pelanggan wajib diisi",
+        )
+
+    table_number = (
+        data.table_number.strip()
+        if data.table_number and data.table_number.strip()
+        else None
+    )
+
     menu_ids = [item.menu_id for item in data.items]
 
     if len(menu_ids) != len(set(menu_ids)):
         raise HTTPException(
             status_code=422,
-            detail="Setiap menu cukup dicantumkan satu kali dengan quantity yang sesuai",
+            detail=(
+                "Setiap menu cukup dicantumkan satu kali "
+                "dengan quantity yang sesuai"
+            ),
         )
 
     menus = (
@@ -60,12 +82,15 @@ def create_order(
         )
 
     for item in data.items:
-        if not menus_by_id[item.menu_id].is_available:
+        menu = menus_by_id[item.menu_id]
+
+        if not menu.is_available:
             raise HTTPException(
                 status_code=400,
-                detail=f"Menu {menus_by_id[item.menu_id].name} sedang tidak tersedia",
+                detail=f"Menu {menu.name} sedang tidak tersedia",
             )
 
+    # Total dihitung berdasarkan harga yang tersimpan di database.
     total = Decimal("0.00")
 
     for item in data.items:
@@ -73,8 +98,13 @@ def create_order(
         total += Decimal(str(menu.price)) * item.quantity
 
     order = Order(
-        customer_name=data.customer_name.strip(),
-        customer_phone=data.customer_phone,
+        customer_name=customer_name,
+        customer_phone=(
+            data.customer_phone.strip()
+            if data.customer_phone and data.customer_phone.strip()
+            else None
+        ),
+        table_number=table_number,
         total=total,
         status="pending",
     )
@@ -90,8 +120,15 @@ def create_order(
             )
         )
 
-    db.add(order)
-    db.commit()
-    db.refresh(order)
+    try:
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Pesanan gagal disimpan ke database",
+        )
 
     return order

@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -65,7 +66,8 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     customer_name: str = Field(min_length=1, max_length=150)
-    customer_phone: Optional[str] = None
+    customer_phone: Optional[str] = Field(default=None, max_length=30)
+    table_number: Optional[str] = Field(default=None, max_length=30)
     items: list[OrderItemCreate] = Field(min_length=1)
 
 
@@ -84,6 +86,7 @@ class OrderResponse(BaseModel):
     id: int
     customer_name: str
     customer_phone: Optional[str] = None
+    table_number: Optional[str] = None
     total: Decimal
     status: str
     created_at: datetime

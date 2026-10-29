@@ -1,3 +1,4 @@
+
 import os
 
 from dotenv import load_dotenv
@@ -25,15 +26,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Membuat tabel yang belum ada.
+# Catatan: create_all tidak menambahkan kolom ke tabel lama.
 Base.metadata.create_all(bind=engine)
 
 
 def create_default_admin():
-    email = os.getenv("ADMIN_EMAIL", "admin@warkop.com").strip().lower()
+    email = os.getenv(
+        "ADMIN_EMAIL",
+        "admin@warkop.com",
+    ).strip().lower()
+
     password = os.getenv("ADMIN_PASSWORD")
 
     if not password:
-        raise RuntimeError("ADMIN_PASSWORD harus diatur di file .env")
+        raise RuntimeError(
+            "ADMIN_PASSWORD harus diatur di file .env"
+        )
 
     db = SessionLocal()
 

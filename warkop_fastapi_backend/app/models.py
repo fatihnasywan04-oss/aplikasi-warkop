@@ -1,3 +1,4 @@
+
 from datetime import datetime
 
 from sqlalchemy import (
@@ -66,6 +67,11 @@ class Order(Base):
     id = Column(Integer, primary_key=True, index=True)
     customer_name = Column(String(150), nullable=False)
     customer_phone = Column(String(30), nullable=True)
+
+    # Nomor meja dari QR pelanggan, contoh: "3".
+    # Nullable agar pesanan lama tetap kompatibel.
+    table_number = Column(String(30), nullable=True)
+
     total = Column(Numeric(12, 2), default=0, nullable=False)
     status = Column(String(30), default="pending", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

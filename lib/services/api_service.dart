@@ -1,11 +1,11 @@
-import 'dart:convert';
 
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-// Windows/Chrome di komputer yang sama: http://127.0.0.1:8000
-// Android Emulator: http://10.0.2.2:8000
-// HP fisik: ganti dengan IPv4 komputer, contoh http://192.168.1.10:8000
-const String apiBaseUrl = 'http://127.0.0.1:8000';
+const String apiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://127.0.0.1:8000',
+);
 
 class ApiService {
   ApiService._();
@@ -19,20 +19,16 @@ class ApiService {
     late final http.Response response;
 
     try {
-      response = await http
-          .post(
-            Uri.parse('$apiBaseUrl/api/auth/login'),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'email': email,
-              'password': password,
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
+      response = await http.post(
+        Uri.parse('$apiBaseUrl/api/auth/login'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
+      ).timeout(const Duration(seconds: 15));
     } catch (_) {
-      throw Exception(
-        'Tidak dapat terhubung ke backend. Pastikan FastAPI aktif dan apiBaseUrl benar.',
-      );
+      throw Exception('Tidak dapat terhubung ke backend.');
     }
 
     Map<String, dynamic> data = {};
@@ -40,7 +36,7 @@ class ApiService {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) data = decoded;
     } on FormatException {
-      // Respons bukan JSON; tampilkan pesan umum di bawah.
+      // Respons bukan JSON.
     }
 
     if (response.statusCode == 200) {
@@ -52,15 +48,73 @@ class ApiService {
       throw Exception('Respons login tidak berisi access_token.');
     }
 
-    final detail = data['detail'];
-    if (detail is String && detail.isNotEmpty) {
-      throw Exception(detail);
-    }
-    throw Exception('Login gagal (HTTP ${response.statusCode}).');
+    throw Exception(
+      data['detail']?.toString() ?? 'Login gagal.',
+    );
   }
 
+  // Menu publik: tidak memerlukan login admin.
+  static Future<List<Map<String, dynamic>>> getPublicMenus() async {
+    final response = await http
+        .get(Uri.parse('$apiBaseUrl/api/public/menus'))
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal mengambil menu dari server.');
+    }
+
+    final decoded = jsonDecode(response.body);
+
+    if (decoded is! List) {
+      throw Exception('Format data menu tidak sesuai.');
+    }
+
+    return decoded
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  // Pesanan publik: tidak mengirim token admin.
+  static Future<Map<String, dynamic>> createPublicOrder({
+    required String customerName,
+    String? customerPhone,
+    required String tableNumber,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$apiBaseUrl/api/public/orders'),
+      headers: const {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'customer_name': customerName.trim(),
+        'customer_phone': customerPhone?.trim().isNotEmpty == true
+            ? customerPhone!.trim()
+            : null,
+        'table_number': tableNumber,
+        'items': items,
+      }),
+    ).timeout(const Duration(seconds: 15));
+
+    Map<String, dynamic> data = {};
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) data = decoded;
+    } on FormatException {
+      // Respons bukan JSON.
+    }
+
+    if (response.statusCode == 201) {
+      return data;
+    }
+
+    throw Exception(
+      data['detail']?.toString() ?? 'Pesanan gagal dikirim.',
+    );
+  }
+
+  // Header khusus endpoint admin.
   static Map<String, String> get authHeaders => {
-        'Content-Type': 'application/json',
-        if (accessToken != null) 'Authorization': 'Bearer $accessToken',
-      };
+    'Content-Type': 'application/json',
+    if (accessToken != null)
+      'Authorization': 'Bearer $accessToken',
+  };
 }
